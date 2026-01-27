@@ -4,25 +4,16 @@
 
 ### How to configure and set credentials:
 
-  aws configure
+   aws configure
 
 AWS Access Key ID [None]: AKIA3PGWxxxxxxCSR46MS
 AWS Secret Access Key [None]: VLddj3Sxxxxxxa4q0s
 Default region name [None]: eu-north-1  
 Default output format [None]: json
 
-  aws sts get-caller-identity
+    aws sts get-caller-identity
 
 	aws configure list
-
-      Name                    Value             Type    Location
-      ----                    -----             ----    --------
-   profile                <not set>             None    None
-access_key     ****************46MS shared-credentials-file    
-secret_key     ****************4q0s shared-credentials-file    
-    region               eu-north-1      config-file    ~/.aws/config
-
-
 
 	aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin 788577008603.dkr.ecr.eu-north-1.amazonaws.com
 
@@ -34,9 +25,9 @@ secret_key     ****************4q0s shared-credentials-file
 
 	aws ec2 create-security-group --group-name my-sg --description "Mt SG" --vpc-id vpc-054cf680083727d58
 
-	 aws ec2 describe-security-groups     
+	aws ec2 describe-security-groups     
 
-	 aws aws ec2 describe-security-groups --group-ids sg-0cbf57155c8e870e6
+	aws aws ec2 describe-security-groups --group-ids sg-0cbf57155c8e870e6
 
 	aws ec2 authorize-security-group-ingress \
 		--group-id sg-0cbf57155c8e870e6 \
@@ -104,8 +95,8 @@ secret_key     ****************4q0s shared-credentials-file
 ### How to attach policy to Change Password for user
 
 	aws iam attach-user-policy \
-  --user-name MyUserCli \
-  --policy-arn arn:aws:iam::aws:policy/IAMUserChangePassword
+  	--user-name MyUserCli \
+  	--policy-arn arn:aws:iam::aws:policy/IAMUserChangePassword
 
 
 
