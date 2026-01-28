@@ -1,15 +1,18 @@
-# aws-exercises
-
-# AWS Comands
+# AWS Comands & Exercises
 
 ### How to configure and set credentials:
+Run:
 
-   aws configure
+	aws configure
+	
+Output:
 
-AWS Access Key ID [None]: AKIA3PGWxxxxxxCSR46MS
-AWS Secret Access Key [None]: VLddj3Sxxxxxxa4q0s
-Default region name [None]: eu-north-1  
-Default output format [None]: json
+	AWS Access Key ID [None]: AKIA3PGWxxxxxxCSR46MS
+	AWS Secret Access Key [None]: VLddj3Sxxxxxxa4q0s
+	Default region name [None]: eu-north-1  
+	Default output format [None]: json
+
+To test:
 
     aws sts get-caller-identity
 
@@ -121,7 +124,7 @@ Default output format [None]: json
 	export AWS_SECRET_ACCESS_KEY=xxxxxxxxxpxBR
 
                                            
-# EXERCISE 1: Create IAM user
+## EXERCISE 1: Create IAM user
 First of all, you need an IAM user with correct permissions to execute the tasks below.
 
 Create a new IAM user using "your name" as a username and "devops" as the user-group
@@ -164,7 +167,7 @@ Note: Do that using the AWS UI with Admin User
 4. Click Create user
 5. Save credentials (VERY IMPORTANT)
 
-#  EXERCISE 2: Configure AWS CLI
+##  EXERCISE 2: Configure AWS CLI
 You want to use the AWS CLI for the following tasks. So, to be able to interact with the AWS account from the AWS Command Line tool you need to configure it correctly:
 
 Set credentials for that user for AWS CLI
@@ -212,10 +215,87 @@ Config
 
 	~/.aws/config
 
-# EXERCISE 3: Create VPC
+## EXERCISE 3: Create VPC
 
 You want to create the EC2 Instance in a dedicated VPC, instead of using the default one. So, using the AWS CLI, you:
 
 create a new VPC with 1 subnet
 create a security group in the VPC that will allow you access on ssh port 22 and will allow browser access to your Node application
 
+1️⃣ Create a new VPC:
+
+	aws ec2 create-vpc \
+ 		--cidr-block 10.0.0.0/16 \
+  		--tag-specifications 'ResourceType=vpc,Tags=[{Key=Name,Value=devops-vpc}]'
+
+	📌 Save the VPC ID from the output:
+
+	"VpcId": "vpc-0abc123..."
+	
+2️⃣ Create a subnet in the VPC
+
+	aws ec2 create-subnet \
+  		--vpc-id <VPC_ID> \
+  		--cidr-block 10.0.1.0/24 \
+  		--availability-zone eu-north-1a \
+  		--tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=devops-subnet}]'
+
+	📌 Save the SubnetId.
+
+3️⃣ Make the subnet public
+
+3.1 Create an Internet Gateway
+
+	aws ec2 create-internet-gateway \
+  		--tag-specifications 'ResourceType=internet-gateway,Tags=[{Key=Name,Value=devops-igw}]'
+
+	📌 Save the InternetGatewayId.
+
+3.2 Attach Internet Gateway to VPC
+
+	aws ec2 attach-internet-gateway \
+  		--internet-gateway-id <IGW_ID> \
+ 		 --vpc-id <VPC_ID>
+
+3.3 Create a route table
+
+	aws ec2 create-route-table \
+  	--vpc-id <VPC_ID> \
+  	--tag-specifications 'ResourceType=route-table,Tags=[{Key=Name,Value=devops-rt}]'
+
+	📌 Save the RouteTableId.
+	
+3.4 Add route to the Internet
+
+	aws ec2 create-route \
+  	--route-table-id <ROUTE_TABLE_ID> \
+  	--destination-cidr-block 0.0.0.0/0 \
+  	--gateway-id <IGW_ID>
+
+3.5 Associate route table with subnet
+
+	aws ec2 associate-route-table \
+  	--route-table-id <ROUTE_TABLE_ID> \
+  	--subnet-id <SUBNET_ID>
+
+4️⃣ Create a Security Group in the VPC
+	
+	aws ec2 create-security-group \
+  	--group-name devops-sg \
+  	--description "Allow SSH and Node app access" \
+  	--vpc-id <VPC_ID>
+
+	📌 Save the GroupId.
+
+5️⃣ Allow SSH (port 22)
+
+	aws ec2 authorize-security-group-ingress \
+  	--group-id <SECURITY_GROUP_ID> \
+  	--protocol tcp \
+  	--port 22 \
+  	--cidr 0.0.0.0/0
+
+## EXERCISE 4: Create EC2 Instance
+Once the VPC is created, using the AWS CLI, you:
+
+Create an EC2 instance in that VPC with the security group you just created and ssh key file
