@@ -121,7 +121,7 @@ Default output format [None]: json
 	export AWS_SECRET_ACCESS_KEY=xxxxxxxxxpxBR
 
                                            
- EXERCISE 1: Create IAM user
+# EXERCISE 1: Create IAM user
 First of all, you need an IAM user with correct permissions to execute the tasks below.
 
 Create a new IAM user using "your name" as a username and "devops" as the user-group
@@ -163,3 +163,59 @@ Note: Do that using the AWS UI with Admin User
 
 4. Click Create user
 5. Save credentials (VERY IMPORTANT)
+
+#  EXERCISE 2: Configure AWS CLI
+You want to use the AWS CLI for the following tasks. So, to be able to interact with the AWS account from the AWS Command Line tool you need to configure it correctly:
+
+Set credentials for that user for AWS CLI
+Configure correct region for your AWS CLI
+
+Befor I've created acceess key for julia user:
+
+<img width="1165" height="604" alt="Screenshot 2026-01-28 at 10 40 04 AM" src="https://github.com/user-attachments/assets/d7517e61-402a-4698-ae79-6cf3119e6be6" />
+
+Then Run in a terminal :
+
+	aws configure
+Output:
+
+	AWS Access Key ID [****************3OWP]: xxxxxxxxxxxxxx3OWP
+	AWS Secret Access Key [****************4q0s]: xxxxxxxxxxxxx4q0s
+	Default region name [eu-north-1]: eu-north-1
+	Default output format [json]: json
+
+To verify credentials are correctly set:
+
+	aws sts get-caller-identity
+
+Output:
+
+	{
+  		"UserId": "AIDAxxxxxxxxxxxx",
+  		"Account": "788577008603",
+  		"Arn": "arn:aws:iam::788577008603:user/julia"
+	}
+
+Check configured region:
+
+	aws configure get region
+Or:
+	aws ec2 describe-availability-zones
+
+AWS CLI saves everything locally:
+
+Credentials
+
+	~/.aws/credentials
+
+Config
+
+	~/.aws/config
+
+# EXERCISE 3: Create VPC
+
+You want to create the EC2 Instance in a dedicated VPC, instead of using the default one. So, using the AWS CLI, you:
+
+create a new VPC with 1 subnet
+create a security group in the VPC that will allow you access on ssh port 22 and will allow browser access to your Node application
+
