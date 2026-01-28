@@ -295,6 +295,16 @@ create a security group in the VPC that will allow you access on ssh port 22 and
   	--port 22 \
   	--cidr 0.0.0.0/0
 
+6️⃣ Allow browser access to Node app
+HTTP (port 80)
+
+	aws ec2 authorize-security-group-ingress \
+ 	--group-id <SECURITY_GROUP_ID> \
+  	--protocol tcp \
+  	--port 80 \
+  	--cidr 0.0.0.0/0
+
+
 ## EXERCISE 4: Create EC2 Instance
 Once the VPC is created, using the AWS CLI, you:
 
