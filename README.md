@@ -309,3 +309,66 @@ HTTP (port 80)
 Once the VPC is created, using the AWS CLI, you:
 
 Create an EC2 instance in that VPC with the security group you just created and ssh key file
+
+How to see what key pairs exist in region?
+
+	aws ec2 describe-key-pairs --region eu-north-1 --query 'KeyPairs[*].KeyName' --output table
+
+Create the julia-key key pair (eu-north-1)
+
+	aws ec2 create-key-pair \
+  	--region eu-north-1 \
+  	--key-name julia-key \
+  	--query 'KeyMaterial' \
+  	--output text > julia-key.pem
+
+	chmod 400 julia-key.pem
+
+Launch the EC2 instance
+
+	INSTANCE_ID=$(aws ec2 run-instances \
+ 	 --region "$REGION" \
+  	--image-id "$AMI_ID" \
+  	--instance-type t3.micro \
+	--key-name julia-key \
+  	--subnet-id "$SUBNET_ID" \
+  	--security-group-ids "$SG_ID" \
+  	--tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=devops-ec2}]' \
+  	--query 'Instances[0].InstanceId' \
+  	--output text)
+
+	INSTANCE_ID=$(aws ec2 run-instances \
+	cmdsubst> --region "$REGION" \
+	cmdsubst> --image-id "$AMI_ID" \
+	cmdsubst> --instance-type t3.micro \
+	cmdsubst> --key-name julia-key \
+	cmdsubst> --subnet-id "$SUBNET_ID" \
+	cmdsubst> --security-group-ids "$SG_ID" \
+	cmdsubst> --associate-public-ip-address \
+	cmdsubst> --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=devops-ec2}]' \
+	cmdsubst> --query 'Instances[0].InstanceId' \
+	cmdsubst> --output text
+	cmdsubst> )
+
+	echo "InstanceId: $INSTANCE_ID"
+
+Fetch public IP
+
+	aws ec2 wait instance-running --region "$REGION" --instance-ids "$INSTANCE_ID"
+
+Get public IP
+
+	PUBLIC_IP=$(aws ec2 describe-instances \
+  	--region "$REGION" \
+  	--instance-ids "$INSTANCE_ID" \
+  	--query 'Reservations[0].Instances[0].PublicIpAddress' \
+  	--output text)
+
+	echo "Public IP: $PUBLIC_IP"
+
+SSH into the instance
+
+	ssh -i julia-key.pem ec2-user@$PUBLIC_IP
+
+
+
