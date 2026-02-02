@@ -397,11 +397,11 @@ Use repository: https://gitlab.com/twn-devops-bootcamp/latest/09-aws/aws-exercis
 
 	version: '3.8'
 	services:
-  	  node-app:
-    	container_name: node-app
-    	image: ${IMAGE}
-    	ports:
-      	  - 3000:3000
+	  node-app:
+	    container_name: node-app
+	    image: ${IMAGE}
+	    ports:
+	      - 3000:3000
 
 
 ## EXERCISE 7: Add "deploy to EC2" step to your existing pipeline
@@ -460,33 +460,95 @@ Create server-cmds.sh script
 
 	#!/bin/bash
 	set -e
-	
-	IMAGE=$1
-	
-	if [ -z "$IMAGE" ]; then
-	  echo "ERROR: Image name not provided"
-	  exit 1
-	fi
-	
-	echo "Deploying image: $IMAGE"
-	
-	export IMAGE=$IMAGE
-	
-	APP_DIR="$HOME/app"
-	cd "$APP_DIR"
-	
-	echo "Stopping existing containers..."
-	docker compose down || true
-	
-	echo "Pulling latest image..."
-	docker compose pull
-	
-	echo "Starting containers..."
-	docker compose up -d
-	
-	echo "Running containers:"
-	docker ps
-	
-	echo "SUCCESS"
+	export IMAGE=$1
+	cd /home/ec2-user
+	docker compose -f docker-compose.yaml up -d
+	echo "success"
 
-[Create Jenkinsfile]:[Jenkinsfile]
+
+Install docker compose
+
+	mkdir -p ~/.docker/cli-plugins
+	curl -SL https://github.com/docker/compose/releases/download/v2.25.0/docker-compose-linux-x86_64 \
+	  -o ~/.docker/cli-plugins/docker-compose
+	chmod +x ~/.docker/cli-plugins/docker-compose
+
+
+Create Jenkinsfile
+
+	#!/usr/bin/env groovy
+	
+	library identifier: 'jenkins-shared-library@main', retriever: modernSCM(
+	  [$class: 'GitSCMSource',
+	   remote: 'https://github.com/jdavydova/jenkins-shared-library.git',
+	   credentialsID: 'github-credentials'
+	  ]
+	)
+	
+	pipeline {
+	  agent any
+	
+	  environment {
+	    DOCKER_REPO = "juliadavydova/my-app"
+	    // EC2 target
+	    EC2_INSTANCE = "ec2-user@16.170.220.53"
+	  }
+	
+	  stages {
+	
+	    stage('set image tag') {
+	      steps {
+	        script {
+	          echo "Calculating image tag from package.json (fallback: BUILD_NUMBER)"
+	          def version = ""
+	          if (fileExists('package.json')) {
+	            // readJSON requires Pipeline Utility Steps plugin.
+	            // If you don't have it, use the fallback version below.
+	            try {
+	              def pkg = readJSON file: 'package.json'
+	              version = pkg.version ?: ""
+	            } catch (e) {
+	              echo "readJSON not available or failed, using BUILD_NUMBER only"
+	            }
+	          }
+	          if (!version?.trim()) {
+	            version = "0.0.0"
+	          }
+	          env.IMAGE_NAME = "${DOCKER_REPO}:${version}-${BUILD_NUMBER}"
+	          echo "IMAGE_NAME=${env.IMAGE_NAME}"
+	        }
+	      }
+	    }
+	
+	    stage('build image') {
+	      steps {
+	        script {
+	          echo 'building the docker image...'
+	          buildImage(env.IMAGE_NAME)
+	          dockerLogin('docker-credentials')
+	          dockerPush(env.IMAGE_NAME)
+	        }
+	      }
+	    }
+	
+	    stage('deploy to EC2') {
+	      steps {
+	        script {
+	          echo "deploying ${env.IMAGE_NAME} to EC2..."
+	
+	          // server-cmds.sh expects image as $1 and does: export IMAGE=$1; docker compose up -d
+	          def shellCmd = "bash /home/ec2-user/server-cmds.sh ${env.IMAGE_NAME}"
+	
+	          sshagent(['ec2-server-key']) {
+	            sh """
+	              set -e
+	              scp -o StrictHostKeyChecking=no server-cmds.sh ${EC2_INSTANCE}:/home/ec2-user/server-cmds.sh
+	              scp -o StrictHostKeyChecking=no docker-compose.yaml ${EC2_INSTANCE}:/home/ec2-user/docker-compose.yaml
+	              ssh -o StrictHostKeyChecking=no ${EC2_INSTANCE} "chmod +x /home/ec2-user/server-cmds.sh && ${shellCmd}"
+	            """
+	          }
+	        }
+	      }
+	    }
+	  }
+	}
