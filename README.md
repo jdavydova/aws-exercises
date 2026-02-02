@@ -587,8 +587,102 @@ Check rules for Security Group
 	  --query "SecurityGroups[0].IpPermissions" \
 	  --output table
 
+
 Open browser
 
 	http://16.170.220.53:3000
 
 <img width="808" height="656" alt="Screenshot 2026-02-02 at 11 37 35 AM" src="https://github.com/user-attachments/assets/fb572c03-31d0-493d-9aae-80fdc02b69ee" />
+
+
+EXERCISE 9: Configure automatic triggering of multi-branch pipeline
+Your team members are creating branches to add new features to the application or fix any issues, so you don't want to build and deploy these half-done features or bug fixes. You want to build and deploy only to the master branch. All other branches should only run tests. Add this logic to the Jenkinsfile:
+
+Add branch based logic to Jenkinsfile
+Add webhook to trigger pipeline automatically
+
+	pipeline {
+	  agent any
+	
+	  environment {
+	    DOCKER_REPO = "juliadavydova/my-app"
+	    EC2_INSTANCE = "ec2-user@16.170.220.53"
+	  }
+	
+	  stages {
+	
+	    stage('Test') {
+	      steps {
+	        sh """
+	          cd app
+	          npm ci || npm install
+	          npm test
+	        """
+	      }
+	    }
+	
+	    stage('Set image tag') {
+	      when {
+	        anyOf { branch 'master'; branch 'main' }
+	      }
+	      steps {
+	        script {
+	          def version = "0.0.0"
+	          if (fileExists('app/package.json')) {
+	            try {
+	              def pkg = readJSON file: 'app/package.json'
+	              version = pkg.version ?: "0.0.0"
+	            } catch (e) {
+	              echo "readJSON not available, using 0.0.0"
+	            }
+	          }
+	          env.IMAGE_NAME = "${DOCKER_REPO}:${version}-${BUILD_NUMBER}"
+	          echo "IMAGE_NAME=${env.IMAGE_NAME}"
+	        }
+	      }
+	    }
+	
+	    stage('Build & Push Image') {
+	      when {
+	        anyOf { branch 'master'; branch 'main' }
+	      }
+	      steps {
+	        script {
+	          sh "docker build -t ${env.IMAGE_NAME} ./app"
+	          dockerLogin('docker-credentials')
+	          dockerPush(env.IMAGE_NAME)
+	        }
+	      }
+	    }
+	
+	    stage('Deploy to EC2') {
+	      when {
+	        anyOf { branch 'master'; branch 'main' }
+	      }
+	      steps {
+	        script {
+	          sshagent(['ec2-server-key']) {
+	            sh """
+	              set -e
+	              scp -o StrictHostKeyChecking=no server-cmds.sh ${EC2_INSTANCE}:/home/ec2-user/server-cmds.sh
+	              scp -o StrictHostKeyChecking=no docker-compose.yaml ${EC2_INSTANCE}:/home/ec2-user/docker-compose.yaml
+	              ssh -o StrictHostKeyChecking=no ${EC2_INSTANCE} "chmod +x /home/ec2-user/server-cmds.sh && /home/ec2-user/server-cmds.sh ${env.IMAGE_NAME}"
+	            """
+	          }
+	        }
+	      }
+	    }
+	  }
+	}
+
+GitHub webhook (most common)
+
+	In GitHub repo:
+	Settings → Webhooks → Add webhook
+	
+	Payload URL:
+	
+	http(s)://<your-jenkins-url>/github-webhook/
+	
+	Content type: application/json
+	Events: “Just the push event” (and optionally PR events)
