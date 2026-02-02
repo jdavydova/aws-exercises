@@ -12,29 +12,35 @@ pipeline {
 
   environment {
     DOCKER_REPO = "juliadavydova/my-app"
-    // EC2 target
     EC2_INSTANCE = "ec2-user@16.170.220.53"
   }
 
   stages {
 
-    stage('set image tag') {
+    stage('Test') {
+      steps {
+        sh """
+          cd app
+          npm ci || npm install
+          npm test
+        """
+      }
+    }
+
+    stage('Set image tag') {
+      when {
+        anyOf { branch 'master'; branch 'main' }
+      }
       steps {
         script {
-          echo "Calculating image tag from package.json (fallback: BUILD_NUMBER)"
-          def version = ""
-          if (fileExists('package.json')) {
-            // readJSON requires Pipeline Utility Steps plugin.
-            // If you don't have it, use the fallback version below.
+          def version = "0.0.0"
+          if (fileExists('app/package.json')) {
             try {
-              def pkg = readJSON file: 'package.json'
-              version = pkg.version ?: ""
+              def pkg = readJSON file: 'app/package.json'
+              version = pkg.version ?: "0.0.0"
             } catch (e) {
-              echo "readJSON not available or failed, using BUILD_NUMBER only"
+              echo "readJSON not available, using 0.0.0"
             }
-          }
-          if (!version?.trim()) {
-            version = "0.0.0"
           }
           env.IMAGE_NAME = "${DOCKER_REPO}:${version}-${BUILD_NUMBER}"
           echo "IMAGE_NAME=${env.IMAGE_NAME}"
@@ -42,31 +48,31 @@ pipeline {
       }
     }
 
-    stage('build image') {
+    stage('Build & Push Image') {
+      when {
+        anyOf { branch 'master'; branch 'main' }
+      }
       steps {
         script {
-          echo 'building the docker image...'
-          buildImage(env.IMAGE_NAME)
+          sh "docker build -t ${env.IMAGE_NAME} ./app"
           dockerLogin('docker-credentials')
           dockerPush(env.IMAGE_NAME)
         }
       }
     }
 
-    stage('deploy to EC2') {
+    stage('Deploy to EC2') {
+      when {
+        anyOf { branch 'master'; branch 'main' }
+      }
       steps {
         script {
-          echo "deploying ${env.IMAGE_NAME} to EC2..."
-
-          // server-cmds.sh expects image as $1 and does: export IMAGE=$1; docker compose up -d
-          def shellCmd = "bash /home/ec2-user/server-cmds.sh ${env.IMAGE_NAME}"
-
           sshagent(['ec2-server-key']) {
             sh """
               set -e
               scp -o StrictHostKeyChecking=no server-cmds.sh ${EC2_INSTANCE}:/home/ec2-user/server-cmds.sh
               scp -o StrictHostKeyChecking=no docker-compose.yaml ${EC2_INSTANCE}:/home/ec2-user/docker-compose.yaml
-              ssh -o StrictHostKeyChecking=no ${EC2_INSTANCE} "chmod +x /home/ec2-user/server-cmds.sh && ${shellCmd}"
+              ssh -o StrictHostKeyChecking=no ${EC2_INSTANCE} "chmod +x /home/ec2-user/server-cmds.sh && /home/ec2-user/server-cmds.sh ${env.IMAGE_NAME}"
             """
           }
         }
