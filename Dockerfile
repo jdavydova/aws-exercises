@@ -1,12 +1,14 @@
 FROM node:20-alpine
 
-WORKDIR /usr/src/app
+RUN mkdir -p /home/node-app
 
-COPY package*.json ./
-RUN npm
+COPY ./app /home/node-app
 
-COPY . .
+# set default dir so that next commands executes in /home/app dir
+WORKDIR /home/node-app
 
-EXPOSE 3000
+# will execute npm install in /home/app because of WORKDIR
+RUN npm install
 
+# no need for /home/app/server.js because of WORKDIR
 CMD ["node", "server.js"]
