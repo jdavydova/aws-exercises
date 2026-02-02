@@ -366,9 +366,43 @@ Get public IP
 
 	echo "Public IP: $PUBLIC_IP"
 
-SSH into the instance
+## EXERCISE 5: SSH into the server and install Docker on it
+Once the EC2 instance is created successfully, you want to prepare the server to run Docker containers. So you:
+
+ssh into the server and
+install Docker on it to run the dockerized application later
+
+
+SSH into the server
 
 	ssh -i julia-key.pem ec2-user@$PUBLIC_IP
+	sudo yum update -y
+	sudo yum install docker -y
+	sudo systemctl start docker
+
+Enable Docker on boot:
+
+	sudo systemctl enable docker
+
+## EXERCISE 6: Add docker-compose for deployment
+First:
+
+add docker-compose to your NodeJS application
+This is because you want to have the whole configuration for starting the docker container in a file, in case you need to make change or add a database later, instead of a plain docker command with parameters.
+
+
+Use repository: https://gitlab.com/twn-devops-bootcamp/latest/09-aws/aws-exercises
+
+### docker-compose.yaml
+
+	version: '3.8'
+	services:
+  	  node-app:
+    	container_name: node-app
+    	image: ${IMAGE}
+    	ports:
+      	  - 3000:3000
+
 
 
 
