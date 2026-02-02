@@ -404,5 +404,87 @@ Use repository: https://gitlab.com/twn-devops-bootcamp/latest/09-aws/aws-exercis
       	  - 3000:3000
 
 
+## EXERCISE 7: Add "deploy to EC2" step to your existing pipeline
 
+Add a deployment step to the Jenkinsfile from the previous exercise’s project to deploy to EC2.
 
+Create .pem via AWS CLI:
+
+	aws ec2 create-key-pair \
+  	--region eu-north-1 \
+    --key-name julia-key \
+  	--key-type rsa \
+  	--query 'KeyMaterial' \
+  	--output text > julia-key.pem
+
+	chmod 400 julia-key.pem
+
+<img width="929" height="527" alt="Screenshot 2026-02-02 at 8 49 38 AM" src="https://github.com/user-attachments/assets/a1c93351-357b-4144-9fb6-457379d92374" />
+
+Add the EC2 private key to Jenkins credentials:
+1️⃣ Open Jenkins credentials
+  Jenkins UI
+  Manage Jenkins
+  Credentials
+  System
+  Global credentials (unrestricted)
+  ➕ Add Credentials
+
+2️⃣ Fill the form like this 👇
+	Field		Value
+	Kind		SSH Username with private key
+	Scope		Global
+	Username	ec2-user
+	Private Key	Enter directly
+	Passphrase	(leave empty)
+	ID			ec2-server-key
+	Description	SSH key for EC2 deployment
+
+3️⃣ Paste the private key
+On a local machine:
+
+	cat julia-key.pem
+
+Copy everything, including:
+
+	-----BEGIN RSA PRIVATE KEY-----
+	...
+	-----END RSA PRIVATE KEY-----
+
+Paste it into Jenkins → Private Key field.
+Click Save ✅
+
+<img width="1234" height="194" alt="Screenshot 2026-02-02 at 9 06 07 AM" src="https://github.com/user-attachments/assets/0b0eb474-4cc7-44e8-ab73-adcbcf6e8ba6" />
+
+Create server-cmds.sh script
+
+	#!/bin/bash
+	set -e
+	
+	IMAGE=$1
+	
+	if [ -z "$IMAGE" ]; then
+	  echo "ERROR: Image name not provided"
+	  exit 1
+	fi
+	
+	echo "Deploying image: $IMAGE"
+	
+	export IMAGE=$IMAGE
+	
+	APP_DIR="$HOME/app"
+	cd "$APP_DIR"
+	
+	echo "Stopping existing containers..."
+	docker compose down || true
+	
+	echo "Pulling latest image..."
+	docker compose pull
+	
+	echo "Starting containers..."
+	docker compose up -d
+	
+	echo "Running containers:"
+	docker ps
+	
+	echo "SUCCESS"
