@@ -488,3 +488,5 @@ Create server-cmds.sh script
 	docker ps
 	
 	echo "SUCCESS"
+
+[Create Jenkinsfile]:[Jenkinsfile]
